@@ -1,0 +1,11 @@
+data/
+datasets/
+models/
+*.h5
+*.keras
+*.pt
+*.pth
+__pycache__/
+.ipynb_checkpoints/
+.env
+.DS_Store
