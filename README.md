@@ -31,69 +31,56 @@ NeuroScan AI, beyin MR görüntülerini derin öğrenme modeli ile analiz ederek
 - Radyoloji karar destek sistemlerini araştıran ekipler
 - Eğitim ve demo amaçlı kullanıcılar
 
-### Product Backlog URL
-
-### Problem
-Beyin tümörü tespiti, uzmanlık gerektiren ve zaman açısından kritik olabilen bir süreçtir. MR görüntülerinin manuel olarak incelenmesi yoğun iş yükü oluşturabilir ve erken ön değerlendirme ihtiyacını artırabilir.
-
-### Çözüm
-NeuroScan AI, beyin MR görüntülerini derin öğrenme modeli ile analiz ederek görüntünün glioma, meningioma, pituitary veya no_tumor sınıflarından hangisine ait olduğunu tahmin eden bir karar destek prototipidir. Kullanıcı MR görüntüsünü yükler, sistem görüntüyü işler ve tahmin sonucunu güven skoru ile birlikte gösterir.
-
 ### Medikal Uyarı
 Bu uygulama klinik tanı koymak amacıyla geliştirilmemiştir. Eğitim, araştırma ve demo amaçlı bir yapay zekâ karar destek prototipidir. Nihai karar için mutlaka uzman hekim değerlendirmesi gereklidir.
 
-### Product Backlog / User Stories
-| ID | User Story | Öncelik | Sprint |
-|---|---|---|---|
-| US-1 | Kullanıcı olarak MR görüntüsü yükleyebilmek istiyorum. | High | Sprint 1 |
-| US-2 | Sistem olarak yüklenen MR görüntüsünü modele uygun şekilde ön işlemek istiyorum. | High | Sprint 1 |
-| US-3 | Kullanıcı olarak tümör var/yok sonucunu görmek istiyorum. | High | Sprint 1-2 |
-| US-4 | Kullanıcı olarak tümör türünü görmek istiyorum. | High | Sprint 2 |
-| US-5 | Kullanıcı olarak tahmin güven skorunu görmek istiyorum. | Medium | Sprint 2 |
-| US-6 | Kullanıcı olarak modelin görüntüde hangi bölgeye odaklandığını görmek istiyorum. | Medium | Sprint 2 |
-| US-7 | Product Owner olarak medikal uyarıların görünmesini istiyorum. | High | Sprint 1 |
-| US-8 | Developer olarak model performans metriklerini görmek istiyorum. | High | Sprint 2 |
-| US-9 | Kullanıcı olarak sade ve anlaşılır bir arayüzde sonuç görmek istiyorum. | High | Sprint 2 |
-| US-10 | Jüri olarak projeyi canlı demo üzerinden test etmek istiyorum. | High | Sprint 3 |
-| US-11 | Takım olarak final videosu ve sunumu hazırlamak istiyoruz. | High | Sprint 3 |
-| US-12 | Kullanıcı olarak analiz sonucunu rapor olarak indirmek istiyorum. | Low | Sprint 3 Extra |
+### Product Backlog URL
+[NeuroVision Sprint Board](https://github.com/users/bariscansaral/projects/1)
 
-### Acceptance Criteria
+---
 
-#### US-1: MR Görüntüsü Yükleme
-- Kullanıcı JPG, JPEG veya PNG formatında MR görüntüsü yükleyebilmelidir.
-- Yüklenen görüntü sistem tarafından okunabilmelidir.
-- Hatalı dosya formatında kullanıcı bilgilendirilmelidir.
-
-#### US-2: Görüntü Ön İşleme
-- Görüntü modelin kullanacağı boyuta dönüştürülmelidir.
-- Görüntü normalize edilmelidir.
-- Ön işleme adımı hata vermeden tamamlanmalıdır.
-
-#### US-3: Tümör Var/Yok Sonucu
-- Sistem yüklenen görüntü için tahmin üretmelidir.
-- Sonuç kullanıcıya anlaşılır şekilde gösterilmelidir.
-
-#### US-4: Tümör Türü Tahmini
-- Sistem glioma, meningioma, pituitary veya no_tumor sınıflarından birini göstermelidir.
-- Tahmin sonucu sonuç ekranında yer almalıdır.
-
-#### US-5: Güven Skoru
-- Model tahminine ait güven skoru gösterilmelidir.
-- Güven skoru yüzde formatında sunulmalıdır.
-
-#### US-7: Medikal Uyarı
-- README içerisinde medikal uyarı bulunmalıdır.
-- Uygulama arayüzünde klinik tanı koymadığı açıkça belirtilmelidir.
-
-## Sprint 1
-- Backlog Düzeni ve Story Seçimleri: Product Backlog, proje önceliklerine göre oluşturulmuş ve Sprint 1 için yüksek öncelikli User Story'ler seçilmiştir. Her User Story görevlerine ayrılarak GitHub Project Board üzerinden yönetilmiştir.
+# Sprint 1
+- **Backlog Düzeni ve Story Seçimleri:** Product Backlog, proje önceliklerine göre oluşturulmuş ve Sprint 1 için yüksek öncelikli User Story'ler seçilmiştir. Her User Story görevlerine ayrılarak GitHub Project Board üzerinden yönetilmiştir.
 
 Story'ler yapılacak işlere (Task'lere) bölünmüştür. Her User Story, geliştirme sürecini daha düzenli yönetebilmek amacıyla küçük görevlere ayrılmış ve takım üyelerine atanmıştır
 
-- Daily Scrum: İletişim klaylığı açısından Daily Scrum toplantılarının WhatsApp üzerinden yazılı olarak gerçekleştirilmesine karar verilmiştir. Günlük toplantılarda tamamlanan çalışmalar, devam eden görevler ve karşılaşılan engeller paylaşılmıştır. Sprint 1'e ait günlük Scrum kayıtları **📄 [Sprint 1 Documents](ProjectManagement/Sprint1Documents/daily_scrum.md)** dosyasında yer almaktadır.
+- **Daily Scrum:** İletişim kolaylığı açısından Daily Scrum toplantılarının WhatsApp üzerinden yazılı olarak gerçekleştirilmesine karar verilmiştir. Günlük toplantılarda tamamlanan çalışmalar, devam eden görevler ve karşılaşılan engeller paylaşılmıştır. Sprint 1'e ait günlük Scrum kayıtları **📄 [Sprint 1 Documents](ProjectManagement/Sprint1Documents/daily_scrum.md)** dosyasında yer almaktadır.
 
-- Sprint board update: Sprint board screenshotları:
-![Sprint 1 Board](ProjectManagement/Sprint1Documents/sprint1_board.png)
+- **Sprint board update:** Sprint board screenshotları:
+![](ProjectManagement/Sprint1Documents/sprint_board1.png)
 
-- Ürün Durumu: Ekran görüntüleri:
+![](ProjectManagement/Sprint1Documents/sprint_board2.png)
+
+- **Ürün Durumu:** Ekran görüntüleri:
+![](ProjectManagement/Sprint1Documents/Product_1-1.jpeg)
+
+![](ProjectManagement/Sprint1Documents/Product_1-2.jpeg)
+
+![](ProjectManagement/Sprint1Documents/Product_1-3.jpeg)
+
+![](ProjectManagement/Sprint1Documents/Product_1-4.jpeg)
+
+- **Sprint Review:** Sprint 1 hedefleri başarıyla tamamlanmıştır. Veri setinin analizi (EDA), MobileNetV2 tabanlı baseline modelin geliştirilmesi ve temel performans değerlendirmeleri tamamlanmıştır. GitHub Project Board ve README dokümantasyonu oluşturulmuş, uygulamanın ilk kullanıcı arayüzü hazırlanmıştır.
+
+Sprint sonunda model performansını artırmak amacıyla bir sonraki sprintte fine-tuning çalışmalarının yapılmasına, Grad-CAM tabanlı açıklanabilir yapay zekâ desteğinin eklenmesine ve eğitilen modelin Streamlit arayüzüne entegre edilmesine karar verilmiştir. Ayrıca kullanıcı deneyimini geliştirecek arayüz iyileştirmeleri ve ek özelliklerin Sprint 2 kapsamında tamamlanması planlanmıştır.
+
+**Sprint Review Katılımcıları**
+- Barışcan Saral
+- Çilem Çağla Çakırer
+- Pelşin Gündüz
+- Taha Öztürk
+
+- **Sprint Retrospective:**
+  - Takım içi iletişim ve görev dağılımının etkili olduğu görülmüş, mevcut çalışma düzeninin sürdürülmesine karar verilmiştir.
+  - Sprint başlangıcında yaşanan zamanlama ve senkronizasyon sorunlarını azaltmak amacıyla ara kontrol toplantılarının daha erken başlatılmasına karar verilmiştir.
+  - Sprint 2'de model performansını artırmak için fine-tuning çalışmalarına öncelik verilmesi kararlaştırılmıştır.
+  - Grad-CAM entegrasyonu için gerekli teknik araştırmaların sprintin başında tamamlanması ve gerçek modelin Streamlit arayüzüne entegre edilmesi hedeflenmiştir.
+  - İş ve staj programları göz önünde bulundurularak, düzenli haftalık kısa senkronizasyon toplantıları yapılmasına karar verilmiştir.
+
+---
+
+# Sprint 2
+
+---
+
+# Sprint 3
