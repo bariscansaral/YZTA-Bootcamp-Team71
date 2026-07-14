@@ -1,0 +1,14 @@
+{
+  "class_names": [
+    "glioma",
+    "meningioma",
+    "no",
+    "pituitary"
+  ],
+  "display_names": {
+    "glioma": "Gliom",
+    "meningioma": "Meningiom",
+    "no": "Tümör Yok",
+    "pituitary": "Hipofiz (Pituiter) Tümör"
+  }
+}
