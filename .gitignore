@@ -9,3 +9,16 @@ __pycache__/
 .ipynb_checkpoints/
 .env
 .DS_Store
+
+# Dataset (repoya asla girmemeli)
+Brain-Tumour-1/
+notebooks/Brain-Tumour-1/
+*.zip
+
+# Python venv
+.venv/
+venv/
+
+# Python venv
+.venv/
+venv/
