@@ -13,3 +13,16 @@ desktop.ini
 *.ini
 .idea/
 catboost_info/
+
+# Dataset (repoya asla girmemeli)
+Brain-Tumour-1/
+notebooks/Brain-Tumour-1/
+*.zip
+
+# Python venv
+.venv/
+venv/
+
+# Python venv
+.venv/
+venv/
