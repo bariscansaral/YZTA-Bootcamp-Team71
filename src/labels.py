@@ -39,8 +39,29 @@ def save_labels(path: str = "models/labels.json") -> None:
         )
 
 
-def load_labels(path: str = "models/labels.json"):
-    """App tarafı: sınıf sırasını dosyadan okur (elle yazmaz)."""
+def load_labels(path: str = "models/labels.json", model_key: str = "neuroscan"):
+    """
+    App tarafı: sınıf sırasını dosyadan okur (elle yazmaz).
+
+    labels.json iki formatı da destekler:
+      1) Düz (tek model):   {"class_names": [...], "display_names": {...}}
+      2) İç içe (çok model): {"neuroscan": {...}, "anemia_detection": {...}, ...}
+
+    model_key: iç içe formatta hangi modelin okunacağı (varsayılan "neuroscan").
+    return: (class_names, display_names)
+    """
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return data["class_names"], data["display_names"]
+
+    # Düz format
+    if "class_names" in data:
+        return data["class_names"], data["display_names"]
+
+    # İç içe (çok modelli) format
+    if model_key not in data:
+        raise KeyError(
+            f"'{model_key}' labels.json içinde yok. "
+            f"Mevcut anahtarlar: {list(data.keys())}"
+        )
+    entry = data[model_key]
+    return entry["class_names"], entry["display_names"]
