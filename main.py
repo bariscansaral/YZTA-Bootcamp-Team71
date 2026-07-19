@@ -1,5 +1,5 @@
 import joblib
-from  tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model
 import numpy as np
 import pandas as pd
 from reports import ReportGenerator
@@ -72,3 +72,13 @@ print(manager.predict_all(test_df_eksik))
 final_results, scores = manager.predict_all(test_df_tam)
 reporter = ReportGenerator()
 print(reporter.generate_report(final_results, scores))
+
+print("\n--- Hasta Bilgilendirme Raporu ---")
+
+print(
+    reporter.generate_patient_report(
+        final_results,
+        scores,
+        patient_name="Test Hastası"
+    )
+)
