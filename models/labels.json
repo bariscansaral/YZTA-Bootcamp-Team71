@@ -1,14 +1,44 @@
 {
-  "class_names": [
-    "glioma",
-    "meningioma",
-    "no",
-    "pituitary"
-  ],
-  "display_names": {
-    "glioma": "Gliom",
-    "meningioma": "Meningiom",
-    "no": "Tümör Yok",
-    "pituitary": "Hipofiz (Pituiter) Tümör"
+  "neuroscan": {
+    "class_names": [
+      "glioma",
+      "meningioma",
+      "no",
+      "pituitary"
+    ],
+    "display_names": {
+      "glioma": "Gliom",
+      "meningioma": "Meningiom",
+      "no": "Tümör Yok",
+      "pituitary": "Hipofiz (Pituiter) Tümör"
+    }
+  },
+  "anemia_detection": {
+    "class_names": [
+      "0",
+      "1"
+    ],
+    "display_names": {
+      "0": "Sağlıklı (Anemi Değil)",
+      "1": "Anemi Teşhisi"
+    }
+  },
+  "autoimmune_detection": {
+    "class_names": [
+      "0",
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "display_names": {
+      "0": "Otoimmün Orşit (Autoimmune orchitis)",
+      "1": "Graves Hastalığı (Graves' disease)",
+      "2": "Diğer (Other)",
+      "3": "Romatoid Artrit (Rheumatoid arthritis)",
+      "4": "Sjögren Sendromu (Sjögren syndrome)",
+      "5": "Sistemik Lupus Eritematozus (SLE)"
+    }
   }
 }

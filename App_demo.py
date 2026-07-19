@@ -1,11 +1,12 @@
 """
 🧠 Derin Öğrenme ile MR Görüntülerinden Beyin Tümörü Tespiti
-Sprint 1 - Demo Arayüzü (Gerçek Model Entegreli)
+Sprint 2 - Demo Arayüzü (Fine-tuned Model + Grad-CAM Modülü Entegreli)
 Geliştirici: Taha
-Model: MobileNetV2 (baseline_mobilenetv2.keras)
+Model: MobileNetV2 fine-tuned (models/neuroscan_mobilenetv2_v2.keras)
 """
 
 import os
+import sys
 import time
 from datetime import datetime
 
@@ -14,6 +15,15 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image
+
+# src/ paketinin (labels.py, gradcam.py) import edilebilmesi için proje kökü
+# sys.path'e eklenir.
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from src.gradcam import make_gradcam_heatmap, overlay_heatmap  # noqa: E402
+from src.labels import load_labels  # noqa: E402
 
 # ─────────────────────────────────────────────────────────────
 # Sayfa Yapılandırması
@@ -264,35 +274,39 @@ st.markdown("""
 
 
 # ─────────────────────────────────────────────────────────────
-# Sınıf Tanımları
+# Sınıf Tanımları — src/labels.py üzerinden models/labels.json'dan okunur
+# (eğitim ve app tarafının aynı sınıf sırasını kullandığından emin olmak için
+# TEK KAYNAK budur; bkz. src/labels.py).
 # ─────────────────────────────────────────────────────────────
-# Model çıkış sırası: [glioma, meningioma, notumor, pituitary]
-CLASS_NAMES = ["Glioma", "Meningioma", "No Tumor", "Pituitary"]
+MODEL_DIR = os.path.join(PROJECT_ROOT, "models")
+LABELS_PATH = os.path.join(MODEL_DIR, "labels.json")
+
+CLASS_NAMES, DISPLAY_NAMES = load_labels(LABELS_PATH)
 
 TUMOR_CLASSES = {
-    "Glioma": {
-        "label_tr": "Glioma Tümörü",
+    "glioma": {
+        "label_tr": DISPLAY_NAMES["glioma"],
         "icon": "🔴",
         "color": "#f87171",
         "bar_color": "linear-gradient(90deg, #ef4444, #f87171)",
         "desc": "Beyin ve omurilikteki glial hücrelerden kaynaklanan tümör türüdür.",
     },
-    "Meningioma": {
-        "label_tr": "Meningiom Tümörü",
+    "meningioma": {
+        "label_tr": DISPLAY_NAMES["meningioma"],
         "icon": "🟡",
         "color": "#fbbf24",
         "bar_color": "linear-gradient(90deg, #f59e0b, #fbbf24)",
         "desc": "Beyin zarlarından (meninkslerden) kaynaklanan, genellikle iyi huylu tümörlerdir.",
     },
-    "No Tumor": {
-        "label_tr": "Tümör Yok",
+    "no": {
+        "label_tr": DISPLAY_NAMES["no"],
         "icon": "🟢",
         "color": "#34d399",
         "bar_color": "linear-gradient(90deg, #10b981, #34d399)",
         "desc": "MR görüntüsünde herhangi bir tümör belirtisi tespit edilmemiştir.",
     },
-    "Pituitary": {
-        "label_tr": "Hipofiz Tümörü",
+    "pituitary": {
+        "label_tr": DISPLAY_NAMES["pituitary"],
         "icon": "🔵",
         "color": "#60a5fa",
         "bar_color": "linear-gradient(90deg, #3b82f6, #60a5fa)",
@@ -304,7 +318,8 @@ TUMOR_CLASSES = {
 # ─────────────────────────────────────────────────────────────
 # Model Yükleme (Cache ile)
 # ─────────────────────────────────────────────────────────────
-MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baseline_mobilenetv2.keras")
+MODEL_PATH = os.path.join(MODEL_DIR, "neuroscan_mobilenetv2_v2.keras")
+MODEL_FILENAME = os.path.basename(MODEL_PATH)
 
 
 @st.cache_resource(show_spinner=False)
@@ -321,25 +336,6 @@ def load_model():
         return model
     except Exception:
         return None
-
-
-@st.cache_resource(show_spinner=False)
-def build_gradcam_components(_model):
-    """Grad-CAM için modelin son konvolüsyon katmanına kadar olan alt-modelini oluşturur.
-
-    Not: Model, girişini kendi içinde (true_divide/subtract katmanları ile)
-    MobileNetV2'nin standart preprocess_input işlemine (x/127.5 - 1) tabi tutuyor.
-    Bu katmanlar yüklenen .keras dosyasında isimlendirilmiş Layer nesneleri olarak
-    erişilebilir olmadığından, aynı sabit dönüşüm burada elle uygulanır.
-    """
-    import tensorflow as tf
-
-    base = _model.get_layer("mobilenetv2_1.00_224")
-    conv_model = tf.keras.Model(inputs=base.input, outputs=base.get_layer("out_relu").output)
-    gap_layer = _model.get_layer("global_average_pooling2d")
-    dropout_layer = _model.get_layer("dropout")
-    dense_layer = _model.get_layer("dense")
-    return conv_model, gap_layer, dropout_layer, dense_layer
 
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
@@ -381,52 +377,6 @@ def predict_with_model(model, img_array: np.ndarray) -> dict:
         "all_scores": scores,
         "inference_ms": inference_ms,
     }
-
-
-def compute_gradcam_heatmap(model, img_array: np.ndarray, pred_index: int) -> np.ndarray:
-    """Verilen sınıf için Grad-CAM ısı haritasını (7x7, [0,1] aralığında) hesaplar."""
-    import tensorflow as tf
-
-    conv_model, gap_layer, dropout_layer, dense_layer = build_gradcam_components(model)
-    img_tensor = tf.convert_to_tensor(img_array)
-
-    with tf.GradientTape() as tape:
-        preprocessed = img_tensor / 127.5 - 1.0
-        conv_output = conv_model(preprocessed, training=False)
-        tape.watch(conv_output)
-        x = gap_layer(conv_output)
-        x = dropout_layer(x, training=False)
-        preds = dense_layer(x)
-        class_channel = preds[:, pred_index]
-
-    grads = tape.gradient(class_channel, conv_output)
-    pooled_grads = tf.reduce_mean(grads, axis=(0, 1, 2))
-    conv_output = conv_output[0]
-    heatmap = conv_output @ pooled_grads[..., tf.newaxis]
-    heatmap = tf.squeeze(heatmap)
-    heatmap = tf.maximum(heatmap, 0) / (tf.reduce_max(heatmap) + 1e-8)
-    return heatmap.numpy()
-
-
-def _heat_to_rgb(values: np.ndarray) -> np.ndarray:
-    """[0,1] aralığındaki değerleri mavi→camgöbeği→yeşil→sarı→kırmızı renk skalasına eşler."""
-    v = np.clip(values, 0.0, 1.0)
-    r = np.clip(1.5 - np.abs(4 * v - 3), 0, 1)
-    g = np.clip(1.5 - np.abs(4 * v - 2), 0, 1)
-    b = np.clip(1.5 - np.abs(4 * v - 1), 0, 1)
-    return np.stack([r, g, b], axis=-1)
-
-
-def overlay_gradcam(image: Image.Image, heatmap: np.ndarray, alpha: float = 0.45) -> Image.Image:
-    """Isı haritasını orijinal görüntü üzerine bindirir."""
-    heat_img = Image.fromarray(np.uint8(heatmap * 255)).resize(image.size, Image.Resampling.BICUBIC)
-    heat_resized = np.array(heat_img, dtype=np.float32) / 255.0
-    colored = _heat_to_rgb(heat_resized)
-
-    base_arr = np.array(image.convert("RGB"), dtype=np.float32) / 255.0
-    blended = base_arr * (1 - alpha) + colored * alpha
-    blended = np.clip(blended * 255, 0, 255).astype(np.uint8)
-    return Image.fromarray(blended)
 
 
 def build_probability_chart(all_scores: dict, pred_class: str) -> alt.Chart:
@@ -486,7 +436,7 @@ def build_report_text(result: dict, filename: str, image_size: tuple) -> str:
         f"Oluşturulma Zamanı : {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}",
         f"Dosya Adı          : {filename}",
         f"Görüntü Boyutu     : {image_size[0]} × {image_size[1]} px",
-        "Model              : MobileNetV2 (baseline_mobilenetv2.keras)",
+        f"Model              : MobileNetV2 fine-tuned ({MODEL_FILENAME})",
         f"Çıkarım Süresi     : {result['inference_ms']:.0f} ms",
         "-" * 56,
         "TAHMİN SONUCU",
@@ -569,7 +519,7 @@ with st.sidebar:
 
     st.markdown(
         '<p style="color:#475569; font-size:0.75rem; margin-top:1.5rem; text-align:center;">'
-        "Sprint 1 · v1.1.0 · Temmuz 2026</p>",
+        "Sprint 2 · v1.2.0 · Temmuz 2026</p>",
         unsafe_allow_html=True,
     )
 
@@ -696,7 +646,7 @@ with tab_analiz:
 
             if analyze_btn:
                 if not MODEL_LOADED:
-                    st.error("❌ Model yüklenemedi. Lütfen `baseline_mobilenetv2.keras` dosyasının proje klasöründe olduğundan emin olun.")
+                    st.error(f"❌ Model yüklenemedi. Lütfen `models/{MODEL_FILENAME}` dosyasının proje klasöründe olduğundan emin olun.")
                 else:
                     progress_text = st.empty()
                     progress_bar = st.progress(0)
@@ -824,7 +774,7 @@ with tab_analiz:
                         padding: 0.8rem 1rem;
                         margin-top: 1rem;">
                 <span style="color: #93c5fd; font-size: 0.85rem;">
-                    🧠 <strong>Model:</strong> MobileNetV2 (Transfer Learning) · Giriş: 224×224×3 · Çıkış: Softmax(4)
+                    🧠 <strong>Model:</strong> MobileNetV2 (Fine-tuned) · Giriş: 224×224×3 · Çıkış: Softmax(4)
                     &nbsp;|&nbsp; Görselin altına bakan bölgeleri incelemek için
                     <strong>🧭 Açıklanabilirlik</strong> sekmesine göz atın.
                 </span>
@@ -884,8 +834,8 @@ with tab_aciklanabilirlik:
             result = st.session_state["last_result"]
             image = st.session_state["last_image"]
             img_array = st.session_state["last_img_array"]
-            heatmap = compute_gradcam_heatmap(model, img_array, result["pred_index"])
-            overlay = overlay_gradcam(image, heatmap)
+            heatmap, _ = make_gradcam_heatmap(img_array, model, class_index=result["pred_index"])
+            overlay = overlay_heatmap(image, heatmap)
 
             pred_info = TUMOR_CLASSES[result["prediction"]]
             col_g1, col_g2 = st.columns(2)
@@ -927,7 +877,7 @@ with tab_model:
           ↓
         Normalizasyon: x / 127.5 − 1   (MobileNetV2 preprocess_input)
           ↓
-        MobileNetV2 (Transfer Learning, dondurulmuş)
+        MobileNetV2 (Transfer Learning + 2 Fazlı Fine-tuning)
           ↓
         Global Average Pooling
           ↓
@@ -949,12 +899,15 @@ with tab_model:
         st.markdown("### 🔢 Parametre İstatistikleri")
         c1, c2 = st.columns(2)
         with c1:
-            st.metric("Toplam Parametre", "2.27M")
+            st.metric("Toplam Parametre", "2.26M")
         with c2:
-            st.metric("Eğitilebilir Parametre", "5,124")
+            st.metric("Eğitilebilir Parametre", "1.69M")
         st.caption(
-            "MobileNetV2 gövdesi (≈2.26M parametre) dondurulmuş durumda kullanılır; "
-            "yalnızca sınıflandırma başlığındaki Dense katmanı (5,124 parametre) eğitilmiştir."
+            "İki fazlı fine-tuning uygulanmıştır: Faz 1'de MobileNetV2 gövdesi "
+            "dondurulup yalnızca sınıflandırma başlığı eğitilmiş, Faz 2'de gövdenin "
+            "son katmanları açılarak düşük öğrenme oranıyla (1e-5) fine-tune edilmiştir. "
+            "Bu nedenle eğitilebilir parametre sayısı (≈1.69M) baseline modele göre "
+            "çok daha yüksektir (bkz. `src/train_finetune.py`)."
         )
 
         st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
@@ -984,14 +937,14 @@ with tab_hakkinda:
         st.markdown("### 📌 Proje Hakkında")
         st.markdown("""
         Bu uygulama, **Yapay Zeka ve Teknoloji Uygulamaları** dersi kapsamında
-        geliştirilen bir beyin tümörü tespit sisteminin Sprint 1 demo arayüzüdür.
-        MobileNetV2 tabanlı transfer learning modeli, beyin MR görüntülerini
-        dört sınıftan birine ayırır: Glioma, Meningioma, Hipofiz Tümörü veya
-        Tümör Yok.
+        geliştirilen bir beyin tümörü tespit sisteminin Sprint 2 demo arayüzüdür.
+        MobileNetV2 tabanlı, iki fazlı fine-tuning ile eğitilmiş model, beyin MR
+        görüntülerini dört sınıftan birine ayırır: Glioma, Meningioma, Hipofiz
+        Tümörü veya Tümör Yok.
 
         Arayüz; görüntü yükleme, model çıkarımı, güven skoru görselleştirmesi
-        ve Grad-CAM tabanlı açıklanabilirlik haritası gibi bileşenleri bir araya
-        getirir.
+        ve `src/gradcam.py` modülüyle üretilen Grad-CAM tabanlı açıklanabilirlik
+        haritası gibi bileşenleri bir araya getirir.
         """)
 
         st.markdown("### 👥 Ekip")
@@ -1019,8 +972,8 @@ with tab_hakkinda:
 
         st.markdown("### 🗓️ Sürüm Bilgisi")
         st.markdown("""
-        - **Sürüm:** v1.1.0
-        - **Aşama:** Sprint 1
+        - **Sürüm:** v1.2.0
+        - **Aşama:** Sprint 2
         - **Tarih:** Temmuz 2026
         """)
 
