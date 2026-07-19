@@ -316,6 +316,40 @@ TUMOR_CLASSES = {
 
 
 # ─────────────────────────────────────────────────────────────
+# Kan Tahlili Modelleri — Sınıf Tanımları
+# (models/anemia_model.pkl, models/autoimmune_model.pkl; bkz. docs/dataset.md)
+# ─────────────────────────────────────────────────────────────
+ANEMIA_MODEL_PATH = os.path.join(MODEL_DIR, "anemia_model.pkl")
+AUTOIMMUNE_MODEL_PATH = os.path.join(MODEL_DIR, "autoimmune_model.pkl")
+
+# Modellerin eğitildiği sütun adları/sırası (bkz. notebooks/02_anemia_eda_and_model.ipynb,
+# notebooks/03_blood_count_eda_and_model.ipynb).
+ANEMIA_FEATURES = ["Gender", "Hemoglobin", "MCH", "MCHC", "MCV"]
+AUTOIMMUNE_FEATURES = [
+    "Age", "Gender", "RBC_Count", "Hemoglobin", "Hematocrit", "MCV", "MCH", "MCHC",
+    "RDW", "Reticulocyte_Count", "WBC_Count", "Neutrophils", "Lymphocytes",
+    "Monocytes", "Eosinophils", "Basophils", "PLT_Count", "MPV", "CRP", "ESR",
+]
+
+ANEMIA_CLASS_NAMES, ANEMIA_DISPLAY_NAMES = load_labels(LABELS_PATH, model_key="anemia_detection")
+AUTOIMMUNE_CLASS_NAMES, AUTOIMMUNE_DISPLAY_NAMES = load_labels(LABELS_PATH, model_key="autoimmune_detection")
+
+# Sınıf başına kısa klinik yönlendirme notu (bkz. reports.py'deki mesajlarla tutarlı).
+ANEMIA_NOTES = {
+    "0": "Girilen değerler anemi ile uyumlu görünmüyor.",
+    "1": "Anemi bulgularıyla uyumlu değerler tespit edildi; bir dahiliye uzmanına başvurunuz.",
+}
+AUTOIMMUNE_NOTES = {
+    "0": "Otoimmün orşit bulgularıyla uyumlu değerler tespit edildi; üroloji konsültasyonu önerilir.",
+    "1": "Graves hastalığına dair bulgular mevcut; endokrinolojiye danışınız.",
+    "2": "Otoimmün bir durum saptandı; lütfen doktorunuzla görüşün.",
+    "3": "Romatoid artrit bulgularıyla uyumlu değerler tespit edildi.",
+    "4": "Sjögren sendromu ile uyumlu değerler tespit edildi.",
+    "5": "SLE bulguları saptandı; detaylı romatolojik tetkik gerekir.",
+}
+
+
+# ─────────────────────────────────────────────────────────────
 # Model Yükleme (Cache ile)
 # ─────────────────────────────────────────────────────────────
 MODEL_PATH = os.path.join(MODEL_DIR, "neuroscan_mobilenetv2_v2.keras")
@@ -336,6 +370,22 @@ def load_model():
         return model
     except Exception:
         return None
+
+
+@st.cache_resource(show_spinner=False)
+def load_blood_models():
+    """Anemi (RandomForest) ve otoimmün (LightGBM) tahlil modellerini yükle ve cache'le."""
+    import joblib
+
+    try:
+        anemia_model = joblib.load(ANEMIA_MODEL_PATH)
+    except Exception:
+        anemia_model = None
+    try:
+        autoimmune_model = joblib.load(AUTOIMMUNE_MODEL_PATH)
+    except Exception:
+        autoimmune_model = None
+    return anemia_model, autoimmune_model
 
 
 def preprocess_image(image: Image.Image) -> np.ndarray:
@@ -468,7 +518,12 @@ def build_report_text(result: dict, filename: str, image_size: tuple) -> str:
 with st.spinner("🧠 Model yükleniyor... (ilk seferde biraz zaman alabilir)"):
     model = load_model()
 
+with st.spinner("🩸 Kan tahlili modelleri yükleniyor..."):
+    anemia_model, autoimmune_model = load_blood_models()
+
 MODEL_LOADED = model is not None
+ANEMIA_MODEL_LOADED = anemia_model is not None
+AUTOIMMUNE_MODEL_LOADED = autoimmune_model is not None
 
 if "history" not in st.session_state:
     st.session_state["history"] = []
@@ -483,7 +538,9 @@ with st.sidebar:
     **Derin Öğrenme ile MR Görüntülerinden Beyin Tümörü Tespiti**
 
     Bu demo, MobileNetV2 tabanlı derin öğrenme modeli kullanarak
-    beyin MR görüntülerinden tümör tespiti yapmaktadır.
+    beyin MR görüntülerinden tümör tespiti yapmaktadır. Ayrıca kan
+    tahlili değerleri üzerinden **anemi** ve **otoimmün hastalık**
+    risk değerlendirmesi de sunar.
     """)
 
     st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
@@ -511,10 +568,10 @@ with st.sidebar:
 
     st.markdown("### 👥 Ekip")
     st.markdown("""
-    - **Taha** — Demo / Arayüz
-    - Ekip Üyesi 2 — Model Eğitimi
-    - Ekip Üyesi 3 — Veri Toplama
-    - Ekip Üyesi 4 — Değerlendirme
+    - Taha 
+    - Pelşin
+    - Barışcan
+    - Çilem
     """)
 
     st.markdown(
@@ -590,8 +647,8 @@ st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────────
 # Sekmeler
 # ─────────────────────────────────────────────────────────────
-tab_analiz, tab_aciklanabilirlik, tab_model, tab_hakkinda = st.tabs(
-    ["🔬 Analiz", "🧭 Açıklanabilirlik", "📊 Model Bilgisi", "ℹ️ Hakkında"]
+tab_analiz, tab_aciklanabilirlik, tab_anemi, tab_otoimmun, tab_model, tab_hakkinda = st.tabs(
+    ["🔬 Analiz", "🧭 Açıklanabilirlik", "🩸 Anemi Testi", "🧬 Otoimmün Testi", "📊 Model Bilgisi", "ℹ️ Hakkında"]
 )
 
 
@@ -862,7 +919,190 @@ with tab_aciklanabilirlik:
 
 
 # ─────────────────────────────────────────────────────────────
-# Tab 3: Model Bilgisi
+# Tab 3: Anemi Testi
+# ─────────────────────────────────────────────────────────────
+with tab_anemi:
+    st.markdown("### 🩸 Anemi Risk Değerlendirmesi")
+    st.markdown(
+        "Temel kırmızı kan hücresi indekslerinizi girerek anemi riskini "
+        "değerlendiren bir **Random Forest** sınıflandırma modeli çalıştırır."
+    )
+
+    if not ANEMIA_MODEL_LOADED:
+        st.error("❌ Anemi modeli yüklenemedi. Lütfen `models/anemia_model.pkl` dosyasının proje klasöründe olduğundan emin olun.")
+    else:
+        with st.form("anemia_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                anemia_gender_label = st.selectbox("Cinsiyet", ["Kadın", "Erkek"], key="anemia_gender")
+                anemia_hemoglobin = st.number_input("Hemoglobin (g/dL)", min_value=5.0, max_value=20.0, value=13.4, step=0.1)
+                anemia_mch = st.number_input("MCH (pg)", min_value=15.0, max_value=40.0, value=22.9, step=0.1)
+            with col2:
+                anemia_mchc = st.number_input("MCHC (g/dL)", min_value=25.0, max_value=38.0, value=30.3, step=0.1)
+                anemia_mcv = st.number_input("MCV (fL)", min_value=50.0, max_value=120.0, value=85.5, step=0.1)
+            anemia_submitted = st.form_submit_button("🩸 Anemi Riskini Hesapla", use_container_width=True)
+
+        if anemia_submitted:
+            # Anemi modeli: Gender 0=Kadın, 1=Erkek (bkz. docs/dataset.md)
+            anemia_row = pd.DataFrame([{
+                "Gender": 0 if anemia_gender_label == "Kadın" else 1,
+                "Hemoglobin": anemia_hemoglobin,
+                "MCH": anemia_mch,
+                "MCHC": anemia_mchc,
+                "MCV": anemia_mcv,
+            }])[ANEMIA_FEATURES]
+
+            anemia_pred = str(int(anemia_model.predict(anemia_row)[0]))
+            anemia_label = ANEMIA_DISPLAY_NAMES[anemia_pred]
+            anemia_conf = None
+            if hasattr(anemia_model, "predict_proba"):
+                anemia_conf = float(anemia_model.predict_proba(anemia_row)[0][int(anemia_pred)])
+
+            anemia_color = "#f87171" if anemia_pred == "1" else "#34d399"
+            st.markdown(f"""
+            <div class="glass-card" style="border-left: 4px solid {anemia_color};">
+                <div class="prediction-label" style="color: {anemia_color};">{anemia_label}</div>
+                <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0.5rem 0 0;">
+                    {ANEMIA_NOTES[anemia_pred]}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if anemia_conf is not None:
+                st.markdown(f"""
+                <div class="result-card">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="color: #e2e8f0; font-weight: 600;">🎯 Model Güveni</span>
+                        <span style="color: {anemia_color}; font-size: 1.4rem; font-weight: 700;">%{anemia_conf * 100:.1f}</span>
+                    </div>
+                    <div class="confidence-bar-container" style="margin-top: 8px;">
+                        <div class="confidence-bar" style="width: {anemia_conf * 100:.1f}%; background: {anemia_color};"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────
+# Tab 4: Otoimmün Testi
+# ─────────────────────────────────────────────────────────────
+with tab_otoimmun:
+    st.markdown("### 🧬 Otoimmün Hastalık Değerlendirmesi")
+    st.markdown(
+        "Tam kan sayımı (CBC) ve inflamasyon belirteçlerini girerek 6 otoimmün "
+        "hastalık kategorisinden birini tahmin eden bir **LightGBM** modeli çalıştırır."
+    )
+
+    if not AUTOIMMUNE_MODEL_LOADED:
+        st.error("❌ Otoimmün modeli yüklenemedi. Lütfen `models/autoimmune_model.pkl` dosyasının proje klasöründe olduğundan emin olun.")
+    else:
+        with st.form("autoimmune_form"):
+            st.markdown("##### 👤 Demografik Bilgiler")
+            col1, col2 = st.columns(2)
+            with col1:
+                auto_age = st.number_input("Yaş", min_value=1, max_value=120, value=45, step=1)
+            with col2:
+                auto_gender_label = st.selectbox("Cinsiyet", ["Erkek", "Kadın"], key="auto_gender")
+
+            st.markdown("##### 🔴 Kırmızı Kan Hücreleri & İndeksleri")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                auto_rbc = st.number_input("RBC Count", min_value=2.0, max_value=7.0, value=4.3, step=0.01)
+                auto_rdw = st.number_input("RDW", min_value=10.0, max_value=20.0, value=14.0, step=0.1)
+            with col2:
+                auto_hgb = st.number_input("Hemoglobin", min_value=5.0, max_value=20.0, value=12.5, step=0.1)
+                auto_retic = st.number_input("Reticulocyte Count", min_value=0.1, max_value=5.0, value=1.9, step=0.01)
+            with col3:
+                auto_hct = st.number_input("Hematocrit", min_value=20.0, max_value=55.0, value=40.6, step=0.1)
+                auto_mch = st.number_input("MCH", min_value=15.0, max_value=40.0, value=29.1, step=0.1)
+            with col4:
+                auto_mcv = st.number_input("MCV", min_value=50.0, max_value=120.0, value=89.7, step=0.1)
+                auto_mchc = st.number_input("MCHC", min_value=25.0, max_value=40.0, value=33.4, step=0.1)
+
+            st.markdown("##### ⚪ Beyaz Kan Hücreleri")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                auto_wbc = st.number_input("WBC Count", min_value=1000, max_value=20000, value=8000, step=100)
+                auto_neut = st.number_input("Neutrophils (%)", min_value=10.0, max_value=90.0, value=52.6, step=0.1)
+            with col2:
+                auto_lymph = st.number_input("Lymphocytes (%)", min_value=5.0, max_value=60.0, value=29.7, step=0.1)
+                auto_mono = st.number_input("Monocytes (%)", min_value=0.5, max_value=15.0, value=6.0, step=0.1)
+            with col3:
+                auto_eos = st.number_input("Eosinophils (%)", min_value=0.1, max_value=10.0, value=3.0, step=0.1)
+                auto_baso = st.number_input("Basophils (%)", min_value=0.1, max_value=3.0, value=1.0, step=0.1)
+
+            st.markdown("##### 🩹 Trombositler & İnflamasyon Belirteçleri")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                auto_plt = st.number_input("PLT Count", min_value=50000, max_value=600000, value=250000, step=1000)
+            with col2:
+                auto_mpv = st.number_input("MPV", min_value=5.0, max_value=15.0, value=9.5, step=0.1)
+            with col3:
+                auto_crp = st.number_input("CRP", min_value=0.0, max_value=200.0, value=5.0, step=0.5)
+            with col4:
+                auto_esr = st.number_input("ESR", min_value=0.0, max_value=120.0, value=15.0, step=1.0)
+
+            autoimmune_submitted = st.form_submit_button("🧬 Otoimmün Değerlendirmeyi Başlat", use_container_width=True)
+
+        if autoimmune_submitted:
+            # Otoimmün modeli: Gender 0=Erkek, 1=Kadın — anemi modelinin TERSİ
+            # kodlama (bkz. notebooks/03_blood_count_eda_and_model.ipynb).
+            auto_row = pd.DataFrame([{
+                "Age": auto_age,
+                "Gender": 0 if auto_gender_label == "Erkek" else 1,
+                "RBC_Count": auto_rbc, "Hemoglobin": auto_hgb, "Hematocrit": auto_hct,
+                "MCV": auto_mcv, "MCH": auto_mch, "MCHC": auto_mchc, "RDW": auto_rdw,
+                "Reticulocyte_Count": auto_retic, "WBC_Count": auto_wbc,
+                "Neutrophils": auto_neut, "Lymphocytes": auto_lymph, "Monocytes": auto_mono,
+                "Eosinophils": auto_eos, "Basophils": auto_baso, "PLT_Count": auto_plt,
+                "MPV": auto_mpv, "CRP": auto_crp, "ESR": auto_esr,
+            }])[AUTOIMMUNE_FEATURES]
+
+            auto_pred = str(int(autoimmune_model.predict(auto_row)[0]))
+            auto_label = AUTOIMMUNE_DISPLAY_NAMES[auto_pred]
+            auto_probs = autoimmune_model.predict_proba(auto_row)[0]
+
+            st.markdown(f"""
+            <div class="glass-card" style="border-left: 4px solid #a78bfa;">
+                <div class="prediction-label" style="color: #a78bfa;">{auto_label}</div>
+                <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0.5rem 0 0;">
+                    {AUTOIMMUNE_NOTES[auto_pred]}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("""
+            <div style="color: #e2e8f0; font-weight: 600; margin: 0.4rem 0 0.6rem;">
+                📊 Tüm Sınıf Olasılıkları
+            </div>
+            """, unsafe_allow_html=True)
+            for cls_name, score in sorted(
+                zip(AUTOIMMUNE_CLASS_NAMES, auto_probs), key=lambda x: x[1], reverse=True
+            ):
+                is_primary = cls_name == auto_pred
+                weight = "700" if is_primary else "400"
+                opacity = "1" if is_primary else "0.65"
+                st.markdown(f"""
+                <div style="margin-bottom: 8px; opacity: {opacity};">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #cbd5e1; font-weight: {weight}; font-size: 0.88rem;">
+                            {AUTOIMMUNE_DISPLAY_NAMES[cls_name]}
+                        </span>
+                        <span style="color: #cbd5e1; font-weight: {weight}; font-size: 0.88rem;">
+                            %{score * 100:.1f}
+                        </span>
+                    </div>
+                    <div class="confidence-bar-container">
+                        <div class="confidence-bar" style="width: {score * 100:.1f}%; background: linear-gradient(90deg, #7c3aed, #a78bfa);"></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            if auto_probs.max() < 0.5:
+                st.warning("⚠️ Model güveni düşük (%{:.0f}). Sonuç kesin bir tanı değildir.".format(auto_probs.max() * 100))
+
+
+# ─────────────────────────────────────────────────────────────
+# Tab 5: Model Bilgisi
 # ─────────────────────────────────────────────────────────────
 with tab_model:
     col_m1, col_m2 = st.columns([1, 1], gap="large")
@@ -926,9 +1166,36 @@ with tab_model:
             </div>
             """, unsafe_allow_html=True)
 
+    st.markdown('<div class="gradient-divider"></div>', unsafe_allow_html=True)
+
+    st.markdown("### 🩸 Diğer Modeller (Kan Tahlili)")
+    col_o1, col_o2 = st.columns(2)
+    with col_o1:
+        st.markdown("""
+        <div class="result-card">
+            <div style="color: #e2e8f0; font-weight: 700;">🩸 Anemi Tespiti</div>
+            <div style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.3rem;">
+                <strong>Model:</strong> Random Forest Classifier<br>
+                <strong>Giriş:</strong> 5 özellik (Gender, Hemoglobin, MCH, MCHC, MCV)<br>
+                <strong>Çıkış:</strong> 2 sınıf (Sağlıklı / Anemi Teşhisi)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_o2:
+        st.markdown("""
+        <div class="result-card">
+            <div style="color: #e2e8f0; font-weight: 700;">🧬 Otoimmün Hastalık Tespiti</div>
+            <div style="color: #94a3b8; font-size: 0.85rem; margin-top: 0.3rem;">
+                <strong>Model:</strong> LightGBM Classifier<br>
+                <strong>Giriş:</strong> 19 özellik (Tam Kan Sayımı + CRP/ESR)<br>
+                <strong>Çıkış:</strong> 6 sınıf (bkz. `docs/dataset.md`)
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────────────────────
-# Tab 4: Hakkında
+# Tab 6: Hakkında
 # ─────────────────────────────────────────────────────────────
 with tab_hakkinda:
     col_i1, col_i2 = st.columns([1, 1], gap="large")
@@ -945,6 +1212,10 @@ with tab_hakkinda:
         Arayüz; görüntü yükleme, model çıkarımı, güven skoru görselleştirmesi
         ve `src/gradcam.py` modülüyle üretilen Grad-CAM tabanlı açıklanabilirlik
         haritası gibi bileşenleri bir araya getirir.
+
+        Ayrıca, tam kan sayımı değerleri üzerinden çalışan iki ek tanı modülü
+        de bulunur: **Anemi Testi** (Random Forest) ve **Otoimmün Testi**
+        (LightGBM, 6 hastalık kategorisi).
         """)
 
         st.markdown("### 👥 Ekip")
