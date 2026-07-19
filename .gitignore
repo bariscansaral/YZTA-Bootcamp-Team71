@@ -10,6 +10,13 @@ __pycache__/
 .ipynb_checkpoints/
 .env
 .DS_Store
+desktop.ini
+*.ini
+.idea/
+catboost_info/
+*.db
+*.sqlite
+*.sqlite3
 
 # Dataset (repoya asla girmemeli)
 Brain-Tumour-1/
