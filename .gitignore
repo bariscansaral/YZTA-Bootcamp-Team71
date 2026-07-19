@@ -6,6 +6,7 @@ models/
 *.pt
 *.pth
 __pycache__/
+*.pyc
 .ipynb_checkpoints/
 .env
 .DS_Store
@@ -25,3 +26,8 @@ notebooks/Brain-Tumour-1/
 # Python venv
 .venv/
 venv/
+
+# Streamlit / local tooling
+.streamlit/
+.claude/
+*.log
